@@ -1,0 +1,171 @@
+# This script calculates the concentration of each sample image based on pre-measured calibration curves and the ROI.
+# These calibration curves are generated using images of known concentration samples.
+# The coefficients for the fit were generated using Excel and are stored in the CALIBRATION_CONSTANTS dictionary.
+# The users must create six subfolders within the 'data' folder, each named after the dye type (dye1, dye2, ..., dye6) and store
+# the images of the relevant samples in the respective subfolders.
+
+
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+import os
+import pandas as pd
+from glob import glob
+
+
+#Store calibration constants for each dye type and the image channel used for concentration calculation (R, G, B)
+CALIBRATION_CONSTANTS = {
+    "dye6": {"slope": 2.1853, "intercept": 160.16, "channel": "G"},
+    "dye5": {"slope": 9.5192, "intercept": 156.91, "channel": "G"},
+    "dye4": {"slope": 0.245, "intercept": 167.65, "channel": "G"},
+    "dye3": {"slope": 3.3036, "intercept": 162.51, "channel": "G"},
+    "dye2": {"slope": 5.8655, "intercept": 165.77, "channel": "B"},
+    "dye1": {"slope": 2.8291, "intercept": 164.37, "channel": "B"},
+
+}
+
+# Define ROI (Region of Interest) for each image
+ROI = {
+
+    "x_top_left": 892,
+    "y_top_left": 616,
+    "width": 50,
+    "height": 50
+}
+
+# Define the hit threshold for categorizing samples as 'Hits'
+HIT_THRESHOLD = 1
+
+# Define the root folder containing the subfolders with images
+# By default, the script assumes that the images are stored in a 'data' folder located in the same directory as the script
+# Each sample should be stored in a subfolder within the 'data' folder named after its dye type (e.g., 'dye6', 'dye5', etc.)
+root_folder =  __file__ +   "\\..\\data"
+
+
+# Define correlation functions for each dye type
+def calculate_concentration(rgb_value, dye_type):
+    # dye 4 is non-linear, so we use a different formula
+    correlation_map = {
+        'dye6': lambda v: (CALIBRATION_CONSTANTS["dye6"]["intercept"] - v) / CALIBRATION_CONSTANTS["dye6"]["slope"],
+        'dye5': lambda v: (CALIBRATION_CONSTANTS["dye5"]["intercept"] - v) / CALIBRATION_CONSTANTS["dye5"]["slope"], 
+        'dye4': lambda v: -np.log(v / CALIBRATION_CONSTANTS["dye4"]["intercept"]) / CALIBRATION_CONSTANTS["dye4"]["slope"],
+        'dye3': lambda v: (CALIBRATION_CONSTANTS["dye3"]["intercept"] - v) / CALIBRATION_CONSTANTS["dye3"]["slope"],
+        'dye2': lambda v: (CALIBRATION_CONSTANTS["dye2"]["intercept"] - v) / CALIBRATION_CONSTANTS["dye2"]["slope"],
+        'dye1': lambda v: (CALIBRATION_CONSTANTS["dye1"]["intercept"] - v) / CALIBRATION_CONSTANTS["dye1"]["slope"],
+    }
+    return correlation_map.get(dye_type, lambda v: None)(rgb_value)
+
+
+
+# Function to process images in a given folder
+def process_images_in_folder(subfolder_path, save_folder):
+    image_paths = glob(os.path.join(subfolder_path, '*.jpg'))
+    num_files = len(image_paths)
+    folder_name = os.path.basename(subfolder_path)
+    
+    if num_files == 0:
+        print(f"⚠️ No images found in {subfolder_path}, skipping.")
+        return
+    
+    # Remove file type and generate list of file names
+    concentrations = [os.path.splitext(os.path.basename(f))[0] for f in image_paths]
+
+    # Define fixed ROI (x, y, width, height)
+    # Due to slight variations in sample positioning across different images, the ROI is dynamically adjusted to ensure accurate analysis.
+    target_roi = (ROI["x_top_left"], ROI["y_top_left"], ROI["width"], ROI["height"])
+
+    # Initialize arrays for storing values
+    rgb_data = np.zeros((num_files, 3))
+    calculated_concentrations = []
+    hit_column = []
+
+    # Process images
+    for k, file_path in enumerate(image_paths):
+        
+        img = cv2.imread(file_path)
+        
+        if img is None:
+            print(f"⚠️ Warning: Could not load {file_path}, skipping.")
+            continue
+
+        # Convert image data from BGR to RBG so that we access the channels correctly in data
+        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        
+        # X and Y coordinates of the top left corner of the ROI are used as (Y,X)
+        # clip the image into the target region
+        target_region = img_rgb[target_roi[1]:target_roi[1]+target_roi[3], target_roi[0]:target_roi[0]+target_roi[2]]
+        
+        # Make a copy of the original image (BGR format) for visualization
+        img_display = img.copy()
+        cv2.rectangle(img_display, (target_roi[0], target_roi[1]), (target_roi[0] + target_roi[2], target_roi[1] + target_roi[3]), (255, 0, 0), 2)
+        cv2.imshow(f"ROI - {os.path.basename(file_path)}", img_display)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        
+        # Compute mean RGB
+        rgb_means = np.mean(target_region, axis=(0, 1))
+        rgb_data[k, :] = rgb_means
+
+        # Calculate concentration based on focused channel 
+        colour_channel = CALIBRATION_CONSTANTS[folder_name]["channel"]
+        
+        if colour_channel == 'G':
+            xlabel = 'Green'
+            focus_channel = 1
+            concentration = calculate_concentration(rgb_means[1], folder_name)
+
+        elif colour_channel == 'B':
+            xlabel = 'Blue'
+            focus_channel = 2
+            concentration = calculate_concentration(rgb_means[2], folder_name)
+
+        elif focus_channel == 'R':
+            xlabel = 'Red'
+            focus_channel = 0
+            concentration = calculate_concentration(rgb_means[0], folder_name)
+
+
+        #Categorises the sample as a 'Hit' if the concentration is less than Hit Threshold      
+        if concentration < HIT_THRESHOLD:
+            calculated_concentrations.append(f'< {HIT_THRESHOLD} ppm')
+            hit_column.append('Hit')
+        else:
+            calculated_concentrations.append(concentration)
+            hit_column.append('')
+        
+        print(f"📸 Processed image {k + 1}/{num_files}: {os.path.basename(file_path)}")
+
+    print("\n🚀 Processing complete, saving data...")
+    
+    # Create DataFrame and save CSV
+    df = pd.DataFrame(rgb_data, columns=['R', 'G', 'B'])
+    df.insert(0, 'Filename', concentrations)
+    df['Calculated_Concentration'] = calculated_concentrations
+    df['HIT'] = hit_column
+    output_file = os.path.join(save_folder, f"{folder_name}_data.csv")
+    df.to_csv(output_file, index=False)
+    print(f"🎉 Data saved to: {output_file}")
+
+    # Convert calculated_concentrations to numerical values for plotting
+    numeric_concentrations = [float(c) if c != f'< {HIT_THRESHOLD} ppm' else 0 for c in calculated_concentrations]
+
+    # Plot and save Concentration vs. Focused Channel Plot with Image Names (adjusted manually to avoid overlap)
+    plt.figure(figsize=(12, 6))
+    plt.scatter(rgb_data[:, focus_channel], numeric_concentrations, color='b', marker='o')
+    for i, txt in enumerate(concentrations):
+        plt.annotate(txt, (rgb_data[i, focus_channel], numeric_concentrations[i]), fontsize=9, ha='right', va='bottom', rotation=15)
+    plt.xlabel(f"{xlabel} Channel Intensity", fontsize=16)
+    plt.ylabel("Calculated Concentration (ppm)", fontsize=16)
+    plt.title(f"Concentration vs. Focused Channel - {folder_name}", fontsize=18)
+    plt.grid()
+    plt.savefig(os.path.join(save_folder, "concentration_vs_channel_plot.png"))
+    plt.show()
+
+# Main processing
+subfolders = [f.path for f in os.scandir(root_folder) if f.is_dir()]
+
+for subfolder in subfolders:
+    print(f"🔍 Processing subfolder: {subfolder}")
+    process_images_in_folder(subfolder, subfolder)
+
+print("✅ All processing completed!")
