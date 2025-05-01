@@ -12,6 +12,6 @@ Users should prepare calibration stock dye solutions with concentrations ranging
 The users must create six subfolders within the 'data' folder, each named after the dye type (dye1, dye2, ..., dye6), and store the images of the relevant samples in the respective subfolders.
 
 # Data
-Two data folders performed by this workstation were shown in the Test.zip folder, including:
-(1) Six calibration stock dye solutions with concentrations ranging from 1 to 10 ppm
-(2) Images of 50 tested materitals in each dyes (50*6)
+Two image folders performed by this workstation were shown in the Test.zip folder, including:
+(1) Test_calibration.zip: Images of six calibration stock dye solutions with concentrations ranging from 1 to 10 ppm.
+(2) Test_Main_calculation.zip: Images of 50 tested materitals in each dyes (50*6).
