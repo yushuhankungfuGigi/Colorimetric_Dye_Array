@@ -147,8 +147,8 @@ porosity-screening/
 
 Provided in `Test.zip`:
 
-1. **Test_calibration.zip** – Calibration images (1–10 ppm) for six dyes (60 images total)
-2. **Test_Main_calculation.zip** – 50 sample images per dye (300 images total).
+1. **Data_calibration.zip** – Calibration images (1–10 ppm) for six dyes (60 images total)
+2. **Data_Main_calculation.zip** – 50 sample images per dye (300 images total).
 
 ## Contributing
 
