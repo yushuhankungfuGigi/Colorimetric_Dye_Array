@@ -1,1 +1,9 @@
-python >=3.9
+# Colorimetric Dye Array Analysis dependencies
+
+numpy>=1.21
+pandas>=1.3
+matplotlib>=3.4
+opencv-python>=4.5
+scikit-image>=0.18
+plotly>=5.0
+scipy>=1.7
