@@ -7,3 +7,4 @@ opencv-python>=4.5
 scikit-image>=0.18
 plotly>=5.0
 scipy>=1.7
+plotly>=5.0
