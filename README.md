@@ -12,7 +12,7 @@ A modular Python toolkit for colorimetric analysis of dye arrays. Provides two m
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/yourusername/Colorimetric_Dye_Array.git
+   git clone https://github.com/yushuhankungfuGigi/Colorimetric_Dye_Array.git
    cd Colorimetric_Dye_Array
    ```
 2. Create a virtual environment (optional but recommended):
