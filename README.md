@@ -93,7 +93,12 @@ These demonstrate the exact workflow used for the published experiments.
 
 ## Examples
 
-An example script showing a full pipeline is available in `examples/demo_run.sh`.
+The `example/` folder contains example datasets for demonstrating the analysis workflow:
+
+* `Data_calibration.zip` — Calibration dataset used to generate example calibration curves.
+* `Data_Main_calculation.zip` — Main dataset for concentration analysis using the calibration results.
+
+
 
 ---
 
